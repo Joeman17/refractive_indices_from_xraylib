@@ -1,8 +1,5 @@
 import argparse
 import sys
-sys.path.append("/beegfs/desy/user/jentscht/xraylib/build/lib/python3.6/site-packages/")
-sys.path.append("/beegfs/desy/user/jentscht/xraylib/build/lib64/python3.6/site-packages/")
-
 import xraylib
 import numpy as np
 
@@ -67,10 +64,12 @@ def get_absorption_edges_in_interval(atomic_number, energy_interval):
     return absorption_edges
 
 def get_refractive_index_from_xraylib(energies, material_name, output=None, density=None):
+    nist_material_list = xraylib.GetCompoundDataNISTList()
     try:
         material_compound = xraylib.CompoundParser(material_name)
         material_type = "elements"
     except ValueError as ve:
+        material_type = None
         matching_compound_list = []
         for nist_material in nist_material_list:
             if nist_material.lower() == material_name.lower():
@@ -85,6 +84,7 @@ def get_refractive_index_from_xraylib(energies, material_name, output=None, dens
             else:
                 accepted = query_yes_no("Found no matching material compound. Did you mean " + matching_compound_list[0])
                 if accepted:
+                    material_name = matching_compound_list[0]
                     material_type = "nist"
                     material_compound = xraylib.GetCompoundDataNISTByName(matching_compound_list[0])
                 else:
@@ -104,7 +104,7 @@ def get_refractive_index_from_xraylib(energies, material_name, output=None, dens
         else:
             print("Please provide density of element compounds!")
     #absorption_edges = get_absorption_edges_in_interval(material_compound["Elements"])
-
+    print(material_name)
     refractive_index = np.zeros(energies.shape[0], dtype=np.cdouble)
     for j in range(energies.shape[0]):
         refractive_index[j] = xraylib.Refractive_Index(material_name, energies[j], density)
@@ -112,7 +112,7 @@ def get_refractive_index_from_xraylib(energies, material_name, output=None, dens
         np.savetxt(output + get_filename(energies, material_name),
                 np.c_[energies, 1 - refractive_index.real, refractive_index.imag], 
                 header=material_name + ", density = " + str(density) + " g/cm**3 " + "\n" + "Energy range: [{:.2e}".format(energies[0]) + ": {:.2e}".format(energies[-1]) + "] keV \n" + "Energies[keV] \t delta \t \t \t beta")
-    return refractive_index
+    return 1 - refractive_index.real + 1j * refractive_index.imag
 
 
 if __name__ == "__main__":
@@ -130,4 +130,5 @@ if __name__ == "__main__":
         print("Refractive inices written to: " + args.output + get_filename(energies, material_name))
 
 
+                    
                     
